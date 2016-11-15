@@ -80,6 +80,55 @@ def eps_discrete(model0, model1, eps=.7, topn=10, sample_size=None):
     return np.array(diff)
 
 
+def by_topn_discrete(model0, model1, eps=.7, topn=10, sample_size=None):
+    diff = list()
+    vocab0 = set(model0.index2word)
+    vocab1 = set(model1.index2word)
+    vocab_common = vocab0 & vocab1
+
+    if sample_size is None:
+        test_set = vocab_common
+    elif sample_size > len(vocab_common):
+        warnings.warn('Sample size is bigger than vocab.')
+        test_set = vocab_common
+    else:
+        test_set = random.sample(list(vocab_common), sample_size)
+
+    for key in test_set:
+        topn_ = topn * 2
+        sim0 = [k for k,v in model0.most_similar([key], topn=topn_) if k in vocab1]
+        if len(sim0) < topn:
+            warnings.warn('Starting iterations.')
+
+        while len(sim0) < topn:
+            topn_ *= 10
+            if topn_ > len(vocab0):
+                warnings.warn('Topn is too big.')
+                break
+            sim0 = [k for k,v in model0.most_similar([key], topn=topn_) if k in vocab1]
+
+        topn_ = topn * 2
+        sim1 = [k for k,v in model1.most_similar([key], topn=topn_) if k in vocab0]
+        if len(sim1) < topn:
+            warnings.warn('Starting iterations.')
+
+        while len(sim1) < topn:
+            topn_ *= 10
+            if topn_ > len(vocab0):
+                warnings.warn('Topn is too big.')
+                break
+            sim1 = [k for k,v in model1.most_similar([key], topn=topn_) if k in vocab0]
+
+        sim0 = set(sim0[:topn])
+        sim1 = set(sim1[:topn])
+        len_sd  = len(sim0 ^ sim1)
+        len_un  = len(sim0 | sim1)
+        if len_un > 0:
+            diff.append(len_sd/len_un)
+
+    return np.array(diff)
+
+
 def eps_continuous(model0, model1, eps=.7, topn=100):
     diff = list()
 
